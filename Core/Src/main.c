@@ -51,6 +51,7 @@ osThreadId CAN1Handle;
 osThreadId CAN2Handle;
 osThreadId CAN3Handle;
 osThreadId CAN4Handle;
+osMutexId CANMutexHandle;
 osSemaphoreId BinSemHandle;
 /* USER CODE BEGIN PV */
 
@@ -84,6 +85,7 @@ void CAN_ANP(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 
 /* USER CODE END 0 */
 
@@ -125,6 +127,11 @@ HAL_CAN_Start(&hcan1);
 
 
   /* USER CODE END 2 */
+
+  /* Create the mutex(es) */
+  /* definition and creation of CANMutex */
+  osMutexDef(CANMutex);
+  CANMutexHandle = osMutexCreate(osMutex(CANMutex));
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -245,7 +252,7 @@ static void MX_CAN1_Init(void)
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
   hcan1.Init.Prescaler = 6;
-  hcan1.Init.Mode = CAN_MODE_NORMAL;
+  hcan1.Init.Mode = CAN_MODE_LOOPBACK;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
   hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
@@ -343,6 +350,8 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+
+
 void printmsg( char *msg)
 {
 	HAL_UART_Transmit(&huart2, (uint8_t*)msg,strlen(msg),1000);
@@ -375,7 +384,7 @@ void CAN_ANP(void)
 {
 		TxHeader.IDE = CAN_ID_EXT;
 		TxHeader.ExtId = 0x18FDB7FE;
-		TxHeader.RTR = CAN_RTR_DATA;
+		TxHeader.RTR = CAN_RTR_DATA ;
 		TxHeader.DLC = 8;
 
 		TxData[0]=x;
@@ -414,6 +423,7 @@ void CAN_NP(void)
 
 void CAN_LP(void)
 {
+
 		TxHeader.IDE = CAN_ID_EXT;
 		TxHeader.ExtId = 0x18FDB7FE;
 		TxHeader.RTR = CAN_RTR_DATA ;
@@ -447,15 +457,15 @@ void CanLowPriorityTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	  osSemaphoreWait(BinSemHandle, osWaitForever);
+	  	  	  osMutexWait(CANMutexHandle, osWaitForever);
 	  	  	  /*char *str1="entered low priority CAN task\n\r";
-	  	  	  printmsg(str1);
-	  		  char *str2 = "semaphore acquired by CAN Low task\n\r";
+	  	  	  printmsg(str1)*;*/
+	  		  /*char *str2 = "semaphore acquired by CAN Low task\n\r";
 	  		  printmsg(str2);*/
-
+	 	 	  x+=1;
 	  		  CAN_LP();
 
-	  	      osSemaphoreRelease(BinSemHandle);
+	  	      osMutexRelease(CANMutexHandle);
 	  	      //char *str3 = "leaving low priority CAN task\n\r";
 	  	      //printmsg(str3);
 	  	      osDelay(50);
@@ -476,15 +486,15 @@ void CanNormalPriorityTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	  osSemaphoreWait(BinSemHandle, osWaitForever);
+	  	  	  osMutexWait(CANMutexHandle, osWaitForever);
 	  	  /*char *str1="entered normal priority CAN task\n\r";
 	  	  printmsg(str1);
 	  		  char *str2 = "semaphore acquired by CAN High task\n\r";
 	  		  printmsg(str2);*/
-
+	  	  	  x+=1;
 	  		  CAN_NP();
 
-	  	      osSemaphoreRelease(BinSemHandle);
+	  	      osMutexRelease(CANMutexHandle);
 
 	  	     // char *str3 = "leaving normal priority CAN task\n\r";
 	  	      //printmsg(str3);
@@ -506,15 +516,15 @@ void CANAboveNormalPriorityTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	  osSemaphoreWait(BinSemHandle, osWaitForever);
+	  	  	  osMutexWait(CANMutexHandle, osWaitForever);
 	  /*char *str1="entered above normal priority CAN task\n\r";
 	  	  	  printmsg(str1);
         char *str2 = "semaphore acquired by CAN High task\n\r";
 	  		  printmsg(str2);*/
-
+	  	  	  x+=1;
 	  		  CAN_ANP();
 
-	  	      osSemaphoreRelease(BinSemHandle);
+	  	      osMutexRelease(CANMutexHandle);
 	  	    // char *str3 = "leaving above normal priority CAN task\n\r";
 	  	      //printmsg(str3);
 	  	      osDelay(50);
@@ -536,17 +546,17 @@ void CANHighPriorityTask(void const * argument)
   for(;;)
   {
 
-	  osSemaphoreWait(BinSemHandle, osWaitForever);
+	  osMutexWait(CANMutexHandle, osWaitForever);
 	  /*char *str1="entered high priority CAN task\n\r";
 	  printmsg(str1);
 
 
 	  char *str2 = "semaphore acquired by CAN High task\n\r";
 	  printmsg(str2);*/
-
+	  x+=1;
 	  CAN_HP();
 
-      osSemaphoreRelease(BinSemHandle);
+      osMutexRelease(CANMutexHandle);
 	 //char *str3 = "leaving high priority CAN task\n\r";
 	  //printmsg(str3);
     osDelay(50);
